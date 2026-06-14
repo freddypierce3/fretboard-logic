@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Guitar Theory Explorer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080810;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0}
+#c{display:block;width:100vw;height:100vh;cursor:grab}
+#c:active{cursor:grabbing}
+
+/* ── Sidebar ── */
+#sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:210px;
+  background:rgba(8,8,18,0.88);
+  backdrop-filter:blur(12px);
+  border-right:1px solid rgba(255,255,255,0.07);
+  padding:18px 14px;
+  display:flex;flex-direction:column;gap:18px;
+  z-index:20;overflow-y:auto;
+}
+.s-logo{font-size:14px;font-weight:600;color:#fff;display:flex;align-items:center;gap:7px;letter-spacing:0.2px}
+.s-logo span{font-size:18px}
+.s-section{display:flex;flex-direction:column;gap:7px}
+.s-label{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#555}
+select{
+  width:100%;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);border-radius:7px;
+  color:#ddd;padding:7px 10px;font-size:13px;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+}
+select:focus{outline:none;border-color:rgba(139,92,246,0.5)}
+.note-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.nb{
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+  border-radius:5px;color:#888;font-size:10px;padding:5px 2px;
+  cursor:pointer;text-align:center;transition:all .12s;line-height:1.3;
+}
+.nb:hover{background:rgba(255,255,255,0.1);color:#ccc}
+.nb.on{background:rgba(139,92,246,0.22);border-color:#7c5cbf;color:#c4b5fd}
+.tog-row{display:flex;align-items:center;justify-content:space-between}
+.tog-label{font-size:12px;color:#777}
+.tog{
+  width:32px;height:17px;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.12);border-radius:9px;
+  cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;
+}
+.tog.on{background:rgba(139,92,246,0.4);border-color:#7c5cbf}
+.tog::after{
+  content:'';position:absolute;width:11px;height:11px;background:#aaa;
+  border-radius:50%;top:2px;left:2px;transition:left .2s,background .2s;
+}
+.tog.on::after{left:17px;background:#c4b5fd}
+.s-divider{height:1px;background:rgba(255,255,255,0.05);margin:2px 0}
+
+/* ── Bottom bar: view + slice ── */
+#bottombar{
+  position:fixed;bottom:0;left:210px;right:0;
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;padding:12px 16px;
+  background:rgba(8,8,18,0.8);backdrop-filter:blur(10px);
+  border-top:1px solid rgba(255,255,255,0.06);
+  z-index:20;flex-wrap:wrap;
+}
+.bar-label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#444;margin-right:4px}
+.bb{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+  border-radius:7px;color:#888;font-size:12px;padding:6px 13px;
+  cursor:pointer;transition:all .12s;white-space:nowrap;
+}
+.bb:hover{border-color:rgba(255,255,255,0.22);color:#ccc}
+.bb.on{border-color:#7c5cbf;color:#c4b5fd;background:rgba(139,92,246,0.15)}
+.bar-sep{width:1px;height:20px;background:rgba(255,255,255,0.08);margin:0 4px}
+
+/* ── Hover card ── */
+#hcard{
+  position:fixed;right:16px;top:16px;
+  background:rgba(10,10,22,0.92);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.1);border-radius:11px;
+  padding:14px 18px;display:none;min-width:170px;z-index:20;
+  pointer-events:none;
+}
+.hc-note{font-size:24px;font-weight:600;color:#fff}
+.hc-iv{font-size:13px;color:#888;margin-top:3px}
+.hc-pos{font-size:12px;color:#555;margin-top:2px}
+.hc-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+
+/* ── Legend ── */
+#legend{
+  position:fixed;right:16px;bottom:64px;
+  background:rgba(10,10,22,0.88);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.08);border-radius:11px;
+  padding:13px 15px;z-index:20;min-width:175px;
+}
+.lg-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#444;margin-bottom:9px}
+.lg-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#aaa}
+.lg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.lg-name{font-weight:500;color:#ddd;margin-right:3px}
+
+/* ── Hint ── */
+#hint{
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  font-size:12px;color:rgba(255,255,255,0.2);pointer-events:none;z-index:20;
+  white-space:nowrap;transition:opacity 1s;
+}
+
+/* ── Height axis guide ── */
+#hguide{
+  position:fixed;left:218px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  z-index:20;pointer-events:none;
+}
+.hg-row{display:flex;align-items:center;gap:6px;padding:3px 0}
+.hg-line{width:16px;height:1px;background:rgba(255,255,255,0.15)}
+.hg-label{font-size:10px;color:#444;white-space:nowrap}
+
+/* ── Mic button ── */
+.mic-btn{
+  width:100%;background:rgba(139,92,246,0.12);
+  border:1px solid rgba(139,92,246,0.3);border-radius:8px;
+  color:#c4b5fd;font-size:13px;padding:9px 12px;
+  cursor:pointer;transition:all .15s;text-align:center;
+}
+.mic-btn:hover{background:rgba(139,92,246,0.22)}
+.mic-btn.mic-on{
+  background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.35);
+  color:#fca5a5;animation:mic-pulse 1.5s ease-in-out infinite;
+}
+@keyframes mic-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}
+  50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}
+}
+
+/* ── Listen HUD ── */
+#listenHUD{
+  position:fixed;right:16px;top:130px;
+  background:rgba(10,10,22,0.93);backdrop-filter:blur(10px);
+  border:1px solid rgba(139,92,246,0.25);border-radius:11px;
+  padding:14px 16px;display:none;min-width:200px;z-index:20;
+}
+.lh-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#555;margin-bottom:8px}
+.lh-note{font-size:38px;font-weight:700;line-height:1;color:#8B5CF6}
+.lh-freq{font-size:12px;color:#555;margin-top:3px}
+.lh-conf-bar{height:3px;background:rgba(255,255,255,0.07);border-radius:2px;margin:8px 0 4px}
+.lh-conf-fill{height:100%;background:linear-gradient(90deg,#8B5CF6,#60a5fa);border-radius:2px;width:0%;transition:width .12s}
+.lh-inscale{font-size:11px;margin-top:5px;min-height:14px}
+.lh-hist{font-size:11px;color:#555;margin-top:9px;line-height:1.6;min-height:14px}
+.lh-matches{margin-top:8px}
+.lh-clear{margin-top:10px;width:100%;font-size:11px;color:#444;background:none;border:1px solid rgba(255,255,255,0.07);border-radius:5px;padding:4px 8px;cursor:pointer}
+.lh-clear:hover{color:#777;border-color:rgba(255,255,255,0.15)}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="s-logo"><span>🎸</span> Guitar Theory 3D</div>
+
+  <div class="s-section">
+    <div class="s-label">Scale</div>
+    <select id="scSel">
+      <option value="major">Major</option>
+      <option value="nat_minor">Natural Minor</option>
+      <option value="pent_maj">Major Pentatonic</option>
+      <option value="pent_min" selected>Minor Pentatonic</option>
+      <option value="blues">Blues Scale</option>
+      <option value="dorian">Dorian Mode</option>
+      <option value="mixo">Mixolydian Mode</option>
+    </select>
+  </div>
+
+  <div class="s-section">
+    <div class="s-label">Root Note</div>
+    <div class="note-grid" id="noteGrid"></div>
+  </div>
+
+  <div class="s-divider"></div>
+
+  <div class="s-section">
+    <div class="s-label">Perspective</div>
+    <div class="tog-row">
+      <span class="tog-label" id="tFrontLabel">Audience (front) ✓</span>
+      <div class="tog on" id="tFrontView"></div>
+    </div>
+    <div style="font-size:11px;color:#444;line-height:1.5;margin-top:2px">
+      ON = audience view (nut on right)<br>OFF = player view (nut on left)
+    </div>
+  </div>
+
+  <div class="s-divider"></div>
+
+  <div class="s-section">
+    <div class="s-label">Display</div>
+    <div class="tog-row"><span class="tog-label">All notes (ghost)</span><div class="tog on" id="tGhost"></div></div>
+    <div class="tog-row"><span class="tog-label">Note name labels</span><div class="tog on" id="tLabels"></div></div>
+    <div class="tog-row"><span class="tog-label">Height stems</span><div class="tog on" id="tStems"></div></div>
+    <div class="tog-row"><span class="tog-label">String connections</span><div class="tog" id="tConn"></div></div>
+  </div>
+
+  <div class="s-divider"></div>
+
+  <div class="s-section">
+    <div class="s-label">🎤 Ear Training</div>
+    <button class="mic-btn" id="micBtn">🎤 Start listening</button>
+    <div style="font-size:11px;color:#444;line-height:1.5;margin-top:5px">
+      Play notes — we'll detect &amp; highlight them on the fretboard in real time.
+    </div>
+  </div>
+
+  <div class="s-divider"></div>
+
+  <div class="s-section">
+    <div class="s-label">Height axis</div>
+    <div class="tog-row"><span class="tog-label">By interval (semitones)</span><div class="tog on" id="tHeightMode"></div></div>
+    <div style="font-size:11px;color:#444;line-height:1.5;margin-top:2px">
+      ON = height shows exact interval distance from root<br>
+      OFF = equal spacing by scale degree
+    </div>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div id="bottombar">
+  <span class="bar-label">View</span>
+  <button class="bb on" data-v="persp">✦ Perspective</button>
+  <button class="bb" data-v="top">⊕ Top down</button>
+  <button class="bb" data-v="headstock">← Along neck</button>
+  <button class="bb" data-v="bridge">↓ Across strings</button>
+  <div class="bar-sep"></div>
+  <span class="bar-label">Position</span>
+  <button class="bb on" data-p="all">All frets</button>
+  <button class="bb" data-p="1">Box 1 (0–4)</button>
+  <button class="bb" data-p="2">Box 2 (5–8)</button>
+  <button class="bb" data-p="3">Box 3 (9–12)</button>
+</div>
+
+<!-- Hover card -->
+<div id="hcard">
+  <div class="hc-note"><span class="hc-dot" id="hcDot"></span><span id="hcNote"></span></div>
+  <div class="hc-iv" id="hcIv"></div>
+  <div class="hc-pos" id="hcPos"></div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <div class="lg-title" id="lgTitle">Scale notes</div>
+  <div id="lgBody"></div>
+</div>
+
+<div id="hint">Drag to orbit · Scroll to zoom · Hover notes for info</div>
+
+<!-- Listen HUD -->
+<div id="listenHUD">
+  <div class="lh-title">🎤 Pitch detection</div>
+  <div class="lh-note" id="lhNote">—</div>
+  <div class="lh-freq" id="lhFreq">Play something…</div>
+  <div class="lh-conf-bar"><div class="lh-conf-fill" id="lhConf"></div></div>
+  <div class="lh-inscale" id="lhInScale"></div>
+  <div class="lh-hist" id="lhHist"></div>
+  <div class="lh-matches" id="lhMatch"></div>
+  <button class="lh-clear" onclick="noteHistory.length=0;updateListenHUD()">↺ Clear history</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── Music Data ──────────────────────────────────────────────────────────────
+
+const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NALT  = {'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb'};
+const OPEN  = [4,9,2,7,11,4]; // E A D G B E semitone indices
+const SNAMES= ['E','A','D','G','B','e'];
+
+const SCALES = {
+  major:    {label:'Major',           ivs:[0,2,4,5,7,9,11],  degrees:['I','II','III','IV','V','VI','VII']},
+  nat_minor:{label:'Natural Minor',   ivs:[0,2,3,5,7,8,10],  degrees:['i','ii°','♭III','iv','v','♭VI','♭VII']},
+  pent_maj: {label:'Maj. Pentatonic', ivs:[0,2,4,7,9],       degrees:['I','II','III','V','VI']},
+  pent_min: {label:'Min. Pentatonic', ivs:[0,3,5,7,10],      degrees:['i','♭III','IV','V','♭VII']},
+  blues:    {label:'Blues Scale',     ivs:[0,3,5,6,7,10],    degrees:['i','♭III','IV','♭V','V','♭VII']},
+  dorian:   {label:'Dorian Mode',     ivs:[0,2,3,5,7,9,10],  degrees:['i','II','♭III','IV','V','VI','♭VII']},
+  mixo:     {label:'Mixolydian',      ivs:[0,2,4,5,7,9,10],  degrees:['I','II','III','IV','V','VI','♭VII']},
+};
+
+// Colors by semitone interval from root
+const IV_COL = [
+  0x8B5CF6, // 0  Root ............. purple
+  0xEF4444, // 1  min 2nd .......... red
+  0x60A5FA, // 2  Maj 2nd .......... blue
+  0x34D399, // 3  min 3rd .......... emerald
+  0x10B981, // 4  Maj 3rd .......... green
+  0xFBBF24, // 5  P4 ............... amber
+  0xFF6B6B, // 6  Tritone .......... coral
+  0xA3E635, // 7  P5 ............... lime
+  0x38BDF8, // 8  min 6th .......... sky
+  0xA78BFA, // 9  Maj 6th .......... violet
+  0xFB923C, // 10 min 7th .......... orange
+  0xF472B6, // 11 Maj 7th .......... pink
+];
+
+const IV_NAME = [
+  'Root','Min 2nd','Maj 2nd','Min 3rd','Maj 3rd',
+  'Perfect 4th','Tritone (♭5)','Perfect 5th',
+  'Min 6th','Maj 6th','Min 7th','Maj 7th'
+];
+
+// ─── App State ───────────────────────────────────────────────────────────────
+
+let rootNote   = 9;          // A
+let scaleName  = 'pent_min';
+let showGhost  = true;
+let showLabels = true;
+let showStems  = true;
+let showConn   = false;
+let heightBySemitone = true; // true=semitone height, false=scale-degree steps
+let fretRange  = [0,12];     // position filter
+let frontView  = true;       // true=audience/front, false=player/back
+
+// ─── Three.js Setup ──────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x080810);
+
+const scene = new THREE.Scene();
+// Slight fog to enhance depth
+scene.fog = new THREE.Fog(0x080810, 40, 90);
+
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth/window.innerHeight, 0.1, 200);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(4, 18, 10);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x8888ff, 0.25);
+fill.position.set(-8, 4, -6);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffaa44, 0.15);
+rim.position.set(12, 2, -4);
+scene.add(rim);
+
+// Scene groups — all parented to WORLD so we can mirror the whole thing for front/back view
+const G_BOARD  = new THREE.Group();
+const G_GHOST  = new THREE.Group();
+const G_NOTES  = new THREE.Group();
+const G_STEMS  = new THREE.Group();
+const G_CONN   = new THREE.Group();
+const G_LABEL  = new THREE.Group();
+const G_DETECT = new THREE.Group(); // pitch-detection highlights
+const WORLD    = new THREE.Group();
+WORLD.add(G_BOARD, G_GHOST, G_STEMS, G_NOTES, G_CONN, G_LABEL, G_DETECT);
+scene.add(WORLD);
+
+// Shared geometries (not disposed between rebuilds)
+const GEO_NOTE  = new THREE.SphereGeometry(0.24, 20, 14);
+const GEO_GHOST = new THREE.SphereGeometry(0.09, 8, 6);
+const GEO_ROOT  = new THREE.SphereGeometry(0.32, 20, 14);
+
+// For raycasting
+const noteObjects = []; // {mesh, semi, string, fret, interval}
+
+// ─── Fretboard ───────────────────────────────────────────────────────────────
+
+const FB_FRETS   = 12;
+const FB_STRINGS = 6;
+const STR_SPACING = 1.0;
+const FRT_SPACING = 1.0;
+const BOARD_W = FB_FRETS * FRT_SPACING;
+const BOARD_D = (FB_STRINGS - 1) * STR_SPACING;
+
+function buildFretboard() {
+  // DoubleSide on all opaque board materials so mirroring (scale.x=-1) doesn't cull faces
+  const DS = THREE.DoubleSide;
+
+  // Main board
+  const bMat = new THREE.MeshLambertMaterial({color:0x3d2b1a, side:DS});
+  const board = new THREE.Mesh(new THREE.BoxGeometry(BOARD_W, 0.14, BOARD_D + 0.2), bMat);
+  board.position.set(BOARD_W/2, -0.07, BOARD_D/2);
+  G_BOARD.add(board);
+
+  // Side rails
+  const railM = new THREE.MeshLambertMaterial({color:0x5a3d22, side:DS});
+  const rGeo  = new THREE.BoxGeometry(BOARD_W + 0.3, 0.28, 0.1);
+  [-0.12, BOARD_D + 0.12].forEach(z => {
+    const r = new THREE.Mesh(rGeo, railM);
+    r.position.set(BOARD_W/2, 0, z);
+    G_BOARD.add(r);
+  });
+
+  // Nut
+  const nutM = new THREE.MeshLambertMaterial({color:0xdbc890, side:DS});
+  const nut  = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.3, BOARD_D + 0.4), nutM);
+  nut.position.set(0, 0, BOARD_D/2);
+  G_BOARD.add(nut);
+
+  // Fret wires
+  const fwM = new THREE.MeshLambertMaterial({color:0x9a8870, side:DS});
+  for (let f = 1; f <= FB_FRETS; f++) {
+    const fw = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.1, BOARD_D + 0.2), fwM);
+    fw.position.set(f * FRT_SPACING, 0, BOARD_D/2);
+    G_BOARD.add(fw);
+  }
+
+  // Strings
+  const sColM = new THREE.MeshLambertMaterial({color:0xd4c090});
+  const sThick = [0.045, 0.038, 0.030, 0.024, 0.018, 0.014];
+  for (let s = 0; s < FB_STRINGS; s++) {
+    const sg = new THREE.CylinderGeometry(sThick[s], sThick[s], BOARD_W + 1.5, 7);
+    const sm = new THREE.Mesh(sg, sColM);
+    sm.rotation.z = Math.PI/2;
+    sm.position.set(BOARD_W/2, 0.08, s * STR_SPACING);
+    G_BOARD.add(sm);
+  }
+
+  // Fret-marker dots
+  const dotM = new THREE.MeshLambertMaterial({color:0x4a3018, transparent:true, opacity:0.65});
+  const dotG = new THREE.CylinderGeometry(0.13, 0.13, 0.02, 18);
+  [3,5,7,9].forEach(f => {
+    const d = new THREE.Mesh(dotG, dotM);
+    d.position.set((f-0.5)*FRT_SPACING, -0.06, BOARD_D/2);
+    G_BOARD.add(d);
+  });
+  // 12th double dot
+  [[0.27],[0.73]].forEach(([t]) => {
+    const d = new THREE.Mesh(dotG, dotM);
+    d.position.set(11.5*FRT_SPACING, -0.06, t*BOARD_D);
+    G_BOARD.add(d);
+  });
+
+  // String name labels (sprites)
+  for (let s = 0; s < FB_STRINGS; s++) {
+    const sp = makeSprite(SNAMES[s], '#a08060', 52);
+    sp.scale.setScalar(0.55);
+    sp.position.set(-0.6, 0.18, s*STR_SPACING);
+    G_BOARD.add(sp);
+  }
+
+  // Fret number labels
+  [3,5,7,9,12].forEach(f => {
+    const sp = makeSprite(String(f), '#6a5a40', 40);
+    sp.scale.setScalar(0.5);
+    sp.position.set((f-0.5)*FRT_SPACING, -0.5, -0.55);
+    G_BOARD.add(sp);
+  });
+}
+
+// ─── Sprite helper ───────────────────────────────────────────────────────────
+
+function makeSprite(text, color, fontSize) {
+  const c2 = document.createElement('canvas');
+  c2.width = 128; c2.height = 128;
+  const ctx = c2.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.font = 'bold ' + fontSize + 'px system-ui,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 64, 64);
+  const tex = new THREE.CanvasTexture(c2);
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false});
+  return new THREE.Sprite(mat);
+}
+
+// ─── Note position helpers ───────────────────────────────────────────────────
+
+function fretX(f) {
+  return f === 0 ? -0.25 : (f - 0.5) * FRT_SPACING;
+}
+function stringZ(s) { return s * STR_SPACING; }
+
+function noteHeight(iv, degreeIdx, totalDegrees) {
+  if (heightBySemitone) {
+    return 0.38 + (iv / 12) * 2.6;
+  } else {
+    // Equal spacing by scale degree
+    return 0.38 + (degreeIdx / (totalDegrees - 1 || 1)) * 2.6;
+  }
+}
+
+// ─── Build dynamic scene objects ─────────────────────────────────────────────
+
+function clearGroup(g) {
+  while (g.children.length) {
+    const c = g.children[0];
+    if (c.material) {
+      if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+      else c.material.dispose();
+    }
+    if (c.geometry && c.geometry !== GEO_NOTE && c.geometry !== GEO_GHOST && c.geometry !== GEO_ROOT) {
+      c.geometry.dispose();
+    }
+    g.remove(c);
+  }
+}
+
+function hexStr(n) { return '#' + n.toString(16).padStart(6,'0'); }
+
+function buildScene() {
+  clearGroup(G_GHOST);
+  clearGroup(G_NOTES);
+  clearGroup(G_STEMS);
+  clearGroup(G_CONN);
+  clearGroup(G_LABEL);
+  clearGroup(G_DETECT);
+  noteObjects.length = 0;
+
+  const scale   = SCALES[scaleName];
+  const ivSet   = new Set(scale.ivs);
+  const semiSet = new Set(scale.ivs.map(iv => (rootNote + iv) % 12));
+
+  // Map: semitone → {iv, degIdx, color}
+  const semiInfo = {};
+  scale.ivs.forEach((iv, di) => {
+    const semi = (rootNote + iv) % 12;
+    semiInfo[semi] = {iv, degIdx:di, color:IV_COL[iv]};
+  });
+
+  // Per-string scale-note positions for connection lines
+  const perString = Array.from({length:FB_STRINGS}, () => []);
+
+  for (let s = 0; s < FB_STRINGS; s++) {
+    for (let f = 0; f <= FB_FRETS; f++) {
+      // Apply position/box filter
+      if (fretRange[0] > 0 && f < fretRange[0]) continue;
+      if (f > fretRange[1]) continue;
+
+      const semi = (OPEN[s] + f) % 12;
+      const x = fretX(f);
+      const z = stringZ(s);
+
+      if (semiSet.has(semi)) {
+        const {iv, degIdx, color} = semiInfo[semi];
+        const y = noteHeight(iv, degIdx, scale.ivs.length);
+        const isRoot = iv === 0;
+
+        // Sphere
+        const mat = new THREE.MeshLambertMaterial({
+          color, emissive:color, emissiveIntensity: isRoot ? 0.45 : 0.22
+        });
+        const geo = isRoot ? GEO_ROOT : GEO_NOTE;
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        G_NOTES.add(mesh);
+        noteObjects.push({mesh, semi, string:s, fret:f, interval:iv, degIdx});
+
+        // Vertical stem
+        if (showStems) {
+          const h = y - 0.08;
+          const stemG = new THREE.CylinderGeometry(0.015, 0.015, h, 6);
+          const stemM = new THREE.MeshLambertMaterial({
+            color, transparent:true, opacity:0.22
+          });
+          const stem = new THREE.Mesh(stemG, stemM);
+          stem.position.set(x, 0.08 + h/2, z);
+          G_STEMS.add(stem);
+        }
+
+        // Label sprite
+        if (showLabels) {
+          const noteName = NOTES[semi] + (NALT[NOTES[semi]] ? '' : '');
+          const sp = makeSprite(NOTES[semi], hexStr(color), 72);
+          sp.scale.setScalar(0.48);
+          sp.position.set(x, y + 0.42, z);
+          G_LABEL.add(sp);
+        }
+
+        perString[s].push({x, y, z, iv, color});
+      } else if (showGhost) {
+        // Ghost / dim note
+        const gMat = new THREE.MeshLambertMaterial({
+          color:0x2a2a4a, transparent:true, opacity:0.28
+        });
+        const gm = new THREE.Mesh(GEO_GHOST, gMat);
+        gm.position.set(x, 0.12, z);
+        G_GHOST.add(gm);
+      }
+    }
+  }
+
+  // String connection lines
+  if (showConn) {
+    for (let s = 0; s < FB_STRINGS; s++) {
+      const pts = perString[s];
+      if (pts.length < 2) continue;
+      const points = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({color:0x4455cc, transparent:true, opacity:0.4});
+      G_CONN.add(new THREE.Line(geo, mat));
+    }
+  }
+
+  // Update legend
+  updateLegend(scale, semiInfo);
+
+  // Re-apply pitch detection highlight if listening
+  if (listenMode) rebuildDetectGroup();
+}
+
+function updateLegend(scale, semiInfo) {
+  document.getElementById('lgTitle').textContent =
+    NOTES[rootNote] + ' ' + scale.label;
+
+  document.getElementById('lgBody').innerHTML = scale.ivs.map((iv, di) => {
+    const semi = (rootNote + iv) % 12;
+    const col  = hexStr(IV_COL[iv]);
+    const name = NOTES[semi] + (NALT[NOTES[semi]] ? '/' + NALT[NOTES[semi]] : '');
+    const deg  = scale.degrees[di];
+    return '<div class="lg-row">' +
+      '<div class="lg-dot" style="background:' + col + '"></div>' +
+      '<span class="lg-name">' + name + '</span>' +
+      '<span style="color:#555;font-size:11px">' + deg + ' · ' + IV_NAME[iv] + '</span>' +
+      '</div>';
+  }).join('');
+}
+
+// ─── Camera / Orbit ──────────────────────────────────────────────────────────
+
+// Camera orbits around a fixed target at center of fretboard
+const TARGET = new THREE.Vector3(BOARD_W/2, 1.0, BOARD_D/2);
+
+const cam = {theta:-0.55, phi:0.85, r:22};
+
+const VIEWS = {
+  persp:     {theta:-0.55, phi:0.85, r:22},
+  top:       {theta:-0.55, phi:0.07, r:26},
+  headstock: {theta:-Math.PI/2 + 0.05, phi:1.05, r:18},
+  bridge:    {theta:0.0,  phi:1.0,  r:22},
+};
+
+function camPos(c) {
+  return new THREE.Vector3(
+    TARGET.x + c.r * Math.sin(c.phi) * Math.sin(c.theta),
+    TARGET.y + c.r * Math.cos(c.phi),
+    TARGET.z + c.r * Math.sin(c.phi) * Math.cos(c.theta)
+  );
+}
+
+function applyCamera() {
+  camera.position.copy(camPos(cam));
+  camera.lookAt(TARGET);
+}
+
+applyCamera();
+
+// Smooth camera transitions
+let camAnim = null;
+
+function animateTo(viewKey) {
+  camAnim = {from:{...cam}, to:{...VIEWS[viewKey]}, t:0, dur:0.75};
+  document.querySelectorAll('[data-v]').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === viewKey));
+}
+
+function lerp(a,b,t){return a+(b-a)*t}
+function easeIO(t){return t<0.5?2*t*t:-1+(4-2*t)*t}
+
+// Angle normalization to avoid wrap-around
+function shortAngle(from, to) {
+  let d = ((to - from) % (Math.PI*2) + Math.PI*3) % (Math.PI*2) - Math.PI;
+  return from + d;
+}
+
+// Mouse orbit
+let drag = false, prev = {x:0, y:0};
+
+canvas.addEventListener('mousedown', e => {
+  drag = true;
+  prev = {x:e.clientX, y:e.clientY};
+  camAnim = null;
+});
+canvas.addEventListener('mouseup',    () => drag = false);
+canvas.addEventListener('mouseleave', () => drag = false);
+canvas.addEventListener('mousemove', e => {
+  if (drag) {
+    const dx = e.clientX - prev.x;
+    const dy = e.clientY - prev.y;
+    cam.theta -= dx * 0.007;
+    cam.phi    = Math.max(0.04, Math.min(Math.PI * 0.92, cam.phi + dy * 0.007));
+    prev = {x:e.clientX, y:e.clientY};
+    applyCamera();
+  } else {
+    doHover(e);
+  }
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.r = Math.max(5, Math.min(40, cam.r + e.deltaY * 0.025));
+  applyCamera();
+}, {passive:false});
+
+// Touch orbit
+let tPrev = null;
+canvas.addEventListener('touchstart', e => {
+  drag = true;
+  tPrev = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  camAnim = null;
+}, {passive:true});
+canvas.addEventListener('touchmove', e => {
+  if (!drag || !tPrev) return;
+  const dx = e.touches[0].clientX - tPrev.x;
+  const dy = e.touches[0].clientY - tPrev.y;
+  cam.theta -= dx * 0.007;
+  cam.phi    = Math.max(0.04, Math.min(Math.PI * 0.92, cam.phi + dy * 0.007));
+  tPrev = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  applyCamera();
+}, {passive:true});
+canvas.addEventListener('touchend', () => { drag = false; tPrev = null; }, {passive:true});
+
+// ─── Raycasting / Hover ──────────────────────────────────────────────────────
+
+const raycaster = new THREE.Raycaster();
+const mouse2    = new THREE.Vector2();
+
+function doHover(e) {
+  mouse2.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse2.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse2, camera);
+
+  const meshes  = noteObjects.map(n => n.mesh);
+  const hits    = raycaster.intersectObjects(meshes);
+  const hcard   = document.getElementById('hcard');
+
+  if (hits.length) {
+    const nd = noteObjects.find(n => n.mesh === hits[0].object);
+    if (nd) {
+      hcard.style.display = 'block';
+      const nName = NOTES[nd.semi];
+      const alt   = NALT[nName] ? '/' + NALT[nName] : '';
+      const col   = hexStr(IV_COL[nd.interval]);
+      document.getElementById('hcDot').style.background  = col;
+      document.getElementById('hcNote').textContent = nName + alt;
+      document.getElementById('hcNote').style.color = col;
+      document.getElementById('hcIv').textContent   = IV_NAME[nd.interval] + ' — ' + nd.interval + ' semitone' + (nd.interval !== 1 ? 's' : '') + ' from root';
+      document.getElementById('hcPos').textContent  = SNAMES[nd.string] + ' string · ' + (nd.fret === 0 ? 'open' : 'fret ' + nd.fret);
+      canvas.style.cursor = 'pointer';
+    }
+  } else {
+    hcard.style.display = 'none';
+    canvas.style.cursor = 'grab';
+  }
+}
+
+// ─── UI Wiring ───────────────────────────────────────────────────────────────
+
+// Root note grid
+const grid = document.getElementById('noteGrid');
+NOTES.forEach((n, i) => {
+  const b = document.createElement('div');
+  b.className = 'nb' + (i === rootNote ? ' on' : '');
+  b.textContent = n + (NALT[n] ? '\n' + NALT[n] : '');
+  b.style.fontSize = NALT[n] ? '9px' : '12px';
+  b.addEventListener('click', () => {
+    rootNote = i;
+    grid.querySelectorAll('.nb').forEach((el, j) => el.classList.toggle('on', j === i));
+    buildScene();
+  });
+  grid.appendChild(b);
+});
+
+// Scale select
+document.getElementById('scSel').addEventListener('change', e => {
+  scaleName = e.target.value;
+  buildScene();
+});
+
+// View buttons
+document.querySelectorAll('[data-v]').forEach(b => {
+  b.addEventListener('click', () => animateTo(b.dataset.v));
+});
+
+// Position / box buttons
+document.querySelectorAll('[data-p]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-p]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    if      (b.dataset.p === 'all') fretRange = [0, 12];
+    else if (b.dataset.p === '1')   fretRange = [0, 4];
+    else if (b.dataset.p === '2')   fretRange = [5, 8];
+    else if (b.dataset.p === '3')   fretRange = [9, 12];
+    buildScene();
+  });
+});
+
+// Toggle helper
+function wireToggle(id, getter, setter) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', () => {
+    setter(!getter());
+    el.classList.toggle('on', getter());
+    buildScene();
+  });
+}
+wireToggle('tGhost',      () => showGhost,         v => showGhost = v);
+wireToggle('tLabels',     () => showLabels,         v => showLabels = v);
+wireToggle('tStems',      () => showStems,          v => showStems = v);
+wireToggle('tConn',       () => showConn,           v => showConn = v);
+wireToggle('tHeightMode', () => heightBySemitone,   v => heightBySemitone = v);
+
+// Front / back view toggle
+// In front (audience) view we mirror the WORLD group along X so that:
+//   - the nut appears on the RIGHT (guitarist's left = audience's right)
+//   - the high-fret body end appears on the LEFT
+//   - string top/bottom order is unchanged (low E still farthest from camera = top)
+// DoubleSide on board materials means mirroring doesn't cull any faces.
+function applyViewMode() {
+  if (frontView) {
+    WORLD.scale.x    = -1;
+    WORLD.position.x = BOARD_W; // shift so center of board stays at x = BOARD_W/2
+  } else {
+    WORLD.scale.x    = 1;
+    WORLD.position.x = 0;
+  }
+  const el = document.getElementById('tFrontView');
+  if (el) el.classList.toggle('on', frontView);
+  const lbl = document.getElementById('tFrontLabel');
+  if (lbl) lbl.textContent = frontView ? 'Audience (front) ✓' : 'Player (back)';
+}
+
+document.getElementById('tFrontView').addEventListener('click', () => {
+  frontView = !frontView;
+  applyViewMode();
+});
+
+// ─── Audio / Pitch Detection ─────────────────────────────────────────────────
+
+let listenMode       = false;
+let audioCtx         = null;
+let analyserNode     = null;
+let micStream        = null;
+let pitchBuf         = null;
+let detectedSemi     = null;   // 0–11 note class, or null
+let detectedFreq     = 0;
+let signalRMS        = 0;
+let lastHighlightSemi = -99;
+let noteHistory      = [];     // rolling list of detected semitone classes
+const MAX_HIST       = 48;
+let lastPitchCheck   = 0;
+
+// Autocorrelation with restricted lag range for guitar/voice (60–1400 Hz).
+// This avoids the O(n²) cost of full-range autocorrelation.
+function autoCorrelate(buf, sr) {
+  const SIZE = buf.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  signalRMS = Math.sqrt(rms / SIZE);
+  if (signalRMS < 0.012) return -1; // silence
+
+  const minLag = Math.floor(sr / 1400);            // ~31 @ 44100
+  const maxLag = Math.min(Math.ceil(sr / 60), SIZE - 512); // ~735 @ 44100
+  if (maxLag < minLag) return -1;
+
+  const WIN = Math.min(SIZE - maxLag, 1024); // correlation window (fixed for speed)
+
+  let maxCorr = -Infinity, bestLag = -1;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let c = 0;
+    for (let j = 0; j < WIN; j++) c += buf[j] * buf[j + lag];
+    if (c > maxCorr) { maxCorr = c; bestLag = lag; }
+  }
+  if (bestLag < 0) return -1;
+
+  // Normalize against signal energy (zero-lag)
+  let energy = 0;
+  for (let j = 0; j < WIN; j++) energy += buf[j] * buf[j];
+  if (energy < 0.0001 || maxCorr / energy < 0.28) return -1; // poor periodicity
+
+  // Parabolic interpolation for sub-sample accuracy
+  let T0 = bestLag;
+  if (bestLag > minLag && bestLag < maxLag) {
+    let cM = 0, cP = 0;
+    for (let j = 0; j < WIN; j++) {
+      cM += buf[j] * buf[j + bestLag - 1];
+      cP += buf[j] * buf[j + bestLag + 1];
+    }
+    const denom = 2 * (2 * maxCorr - cM - cP);
+    if (Math.abs(denom) > 0.00001) T0 = bestLag + (cP - cM) / denom;
+  }
+
+  return sr / T0;
+}
+
+function freqToMidi(freq) { return 69 + 12 * Math.log2(freq / 440); }
+
+function freqToSemiClass(freq) {
+  return (((Math.round(freqToMidi(freq)) % 12) + 12) % 12);
+}
+
+function freqToNoteName(freq) {
+  const midi = Math.round(freqToMidi(freq));
+  const semi = ((midi % 12) + 12) % 12;
+  const oct  = Math.floor(midi / 12) - 1;
+  return NOTES[semi] + oct;
+}
+
+function detectPitchFrame() {
+  if (!analyserNode || !pitchBuf) return;
+  analyserNode.getFloatTimeDomainData(pitchBuf);
+  const freq = autoCorrelate(pitchBuf, audioCtx.sampleRate);
+
+  if (freq > 60 && freq < 1400) {
+    const semi = freqToSemiClass(freq);
+    detectedFreq = freq;
+    if (detectedSemi !== semi) {
+      detectedSemi = semi;
+      noteHistory.push(semi);
+      if (noteHistory.length > MAX_HIST) noteHistory.shift();
+    }
+  } else {
+    detectedSemi = null;
+    detectedFreq = 0;
+  }
+
+  if (detectedSemi !== lastHighlightSemi) {
+    lastHighlightSemi = detectedSemi;
+    rebuildDetectGroup();
+  }
+  updateListenHUD();
+}
+
+function rebuildDetectGroup() {
+  clearGroup(G_DETECT);
+  if (detectedSemi === null) return;
+
+  noteObjects.forEach(nd => {
+    if (nd.semi !== detectedSemi) return;
+    const col = IV_COL[nd.interval];
+
+    // Outer glow sphere
+    const glowGeo = new THREE.SphereGeometry(nd.interval === 0 ? 0.56 : 0.45, 16, 10);
+    const glowMat = new THREE.MeshLambertMaterial({
+      color: col, emissive: col, emissiveIntensity: 1.6,
+      transparent: true, opacity: 0.50, side: THREE.DoubleSide
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.copy(nd.mesh.position);
+    G_DETECT.add(glow);
+
+    // Floor ring
+    const ringGeo = new THREE.TorusGeometry(0.46, 0.045, 8, 28);
+    const ringMat = new THREE.MeshLambertMaterial({
+      color: col, emissive: col, emissiveIntensity: 1.1,
+      transparent: true, opacity: 0.65, side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(nd.mesh.position.x, 0.02, nd.mesh.position.z);
+    ring.rotation.x = Math.PI / 2;
+    G_DETECT.add(ring);
+  });
+}
+
+function inferScales() {
+  if (noteHistory.length < 3) return [];
+  const counts = new Array(12).fill(0);
+  noteHistory.forEach(s => counts[s]++);
+  const uniquePlayed = counts.filter(c => c > 0).length;
+  if (uniquePlayed < 2) return [];
+
+  const results = [];
+  for (const [sKey, sc] of Object.entries(SCALES)) {
+    for (let root = 0; root < 12; root++) {
+      const scSet = new Set(sc.ivs.map(iv => (root + iv) % 12));
+      let hits = 0;
+      counts.forEach((cnt, semi) => { if (scSet.has(semi)) hits += cnt; });
+      const score = hits / noteHistory.length;
+      if (score > 0.45) results.push({ root, score, label: NOTES[root] + ' ' + sc.label });
+    }
+  }
+  return results.sort((a, b) => b.score - a.score).slice(0, 3);
+}
+
+function updateListenHUD() {
+  const hud = document.getElementById('listenHUD');
+  if (!listenMode) { hud.style.display = 'none'; return; }
+  hud.style.display = 'block';
+
+  // Confidence bar (RMS-based proxy)
+  document.getElementById('lhConf').style.width = Math.min(100, signalRMS * 600) + '%';
+
+  if (detectedSemi !== null && detectedFreq > 0) {
+    const noteName = freqToNoteName(detectedFreq);
+    const iv  = ((detectedSemi - rootNote) + 12) % 12;
+    const col = hexStr(IV_COL[iv]);
+    document.getElementById('lhNote').textContent   = noteName;
+    document.getElementById('lhNote').style.color   = col;
+    document.getElementById('lhFreq').textContent   = detectedFreq.toFixed(1) + ' Hz';
+
+    const sc      = SCALES[scaleName];
+    const semiSet = new Set(sc.ivs.map(iv2 => (rootNote + iv2) % 12));
+    const insEl   = document.getElementById('lhInScale');
+    if (semiSet.has(detectedSemi)) {
+      const di = sc.ivs.findIndex(iv2 => (rootNote + iv2) % 12 === detectedSemi);
+      insEl.textContent = '✓ ' + sc.degrees[di] + ' of ' + NOTES[rootNote] + ' ' + sc.label;
+      insEl.style.color = '#4ade80';
+    } else {
+      insEl.textContent = '✗ Outside current scale';
+      insEl.style.color = '#ef4444';
+    }
+  } else {
+    document.getElementById('lhNote').textContent = '—';
+    document.getElementById('lhNote').style.color = '#555';
+    document.getElementById('lhFreq').textContent = signalRMS > 0.012 ? 'Analyzing…' : 'Play something…';
+    document.getElementById('lhInScale').textContent = '';
+  }
+
+  // Note history (unique, most recent 10)
+  const unique = [...new Set([...noteHistory].reverse())].slice(0, 10).reverse();
+  const histEl = document.getElementById('lhHist');
+  histEl.textContent = unique.length ? 'Heard: ' + unique.map(s => NOTES[s]).join(' · ') : '';
+
+  // Scale inference
+  const matches = inferScales();
+  document.getElementById('lhMatch').innerHTML = matches.length
+    ? '<div style="font-size:10px;color:#444;margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Best matches</div>' +
+      matches.map((m, i) =>
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">' +
+        '<span style="color:' + (i === 0 ? '#c4b5fd' : '#666') + '">' + m.label + '</span>' +
+        '<span style="color:#444">' + Math.round(m.score * 100) + '%</span></div>'
+      ).join('')
+    : '';
+}
+
+async function startListening() {
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(micStream);
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 4096;
+    analyserNode.smoothingTimeConstant = 0;
+    src.connect(analyserNode);
+    pitchBuf = new Float32Array(analyserNode.fftSize);
+    listenMode = true;
+    lastHighlightSemi = -99;
+    updateMicBtn();
+    updateListenHUD();
+  } catch (err) {
+    alert('Microphone access denied:\n' + err.message);
+  }
+}
+
+function stopListening() {
+  listenMode = false;
+  if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx)   { audioCtx.close(); audioCtx = null; }
+  analyserNode = null; pitchBuf = null;
+  detectedSemi = null; detectedFreq = 0; signalRMS = 0;
+  lastHighlightSemi = -99;
+  noteHistory = [];
+  clearGroup(G_DETECT);
+  updateMicBtn();
+  updateListenHUD();
+}
+
+function updateMicBtn() {
+  const btn = document.getElementById('micBtn');
+  if (!btn) return;
+  btn.textContent = listenMode ? '⏹ Stop listening' : '🎤 Start listening';
+  btn.classList.toggle('mic-on', listenMode);
+}
+
+document.getElementById('micBtn').addEventListener('click', () => {
+  listenMode ? stopListening() : startListening();
+});
+
+// ─── Resize ──────────────────────────────────────────────────────────────────
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ─── Animation Loop ──────────────────────────────────────────────────────────
+
+const clock3 = new THREE.Clock();
+let elapsed = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock3.getDelta();
+  elapsed += dt;
+
+  // Camera transition
+  if (camAnim) {
+    camAnim.t += dt / camAnim.dur;
+    if (camAnim.t >= 1) { camAnim.t = 1; camAnim = null; }
+    const t = easeIO(camAnim.t);
+    cam.theta = lerp(camAnim.from.theta, shortAngle(camAnim.from.theta, camAnim.to.theta), t);
+    cam.phi   = lerp(camAnim.from.phi,   camAnim.to.phi,   t);
+    cam.r     = lerp(camAnim.from.r,     camAnim.to.r,     t);
+    applyCamera();
+  }
+
+  // Root note pulse
+  noteObjects.forEach(n => {
+    if (n.interval === 0) {
+      const s = 1.25 + Math.sin(elapsed * 2.2) * 0.1;
+      n.mesh.scale.setScalar(s);
+    }
+  });
+
+  // Pitch detection (throttled to ~20fps to keep the autocorrelation affordable)
+  if (listenMode && elapsed - lastPitchCheck > 0.05) {
+    detectPitchFrame();
+    lastPitchCheck = elapsed;
+  }
+
+  // Animate detect highlights: glow spheres pulse in scale, rings pulse in opacity
+  if (G_DETECT.children.length > 0) {
+    const p = 0.88 + Math.sin(elapsed * 5.0) * 0.14;
+    const o = 0.45 + Math.sin(elapsed * 5.0) * 0.22;
+    G_DETECT.children.forEach((c, i) => {
+      if (i % 2 === 0) c.scale.setScalar(p);        // glow sphere
+      else if (c.material) c.material.opacity = o;   // ring
+    });
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+buildFretboard();
+buildScene();
+applyViewMode();
+animateTo('persp');
+animate();
+
+// Fade out hint
+setTimeout(() => {
+  const h = document.getElementById('hint');
+  if (h) { h.style.opacity = '0'; setTimeout(() => h && h.remove(), 1100); }
+}, 5000);
+
+</script>
+</body>
+</html>
